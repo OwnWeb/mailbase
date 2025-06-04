@@ -8,4 +8,5 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 Route::group(['as' => 'mailbase::', 'prefix' => 'mailbase', 'middleware' => SubstituteBindings::class], function () {
     Route::get('/', MailController::class . '@index')->name('index');
     Route::get('/{mailbase}', MailController::class . '@show')->name('show');
+    Route::post('/clear', MailController::class . '@clear')->name('clear');
 });

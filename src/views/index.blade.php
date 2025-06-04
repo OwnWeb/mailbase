@@ -48,22 +48,37 @@
         .scrollbar-thin::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        /* Mobile header visibility */
+        @media (max-width: 767px) {
+            /* Hide reset button when viewing mail details on mobile */
+            .mobile-mail-viewer #reset-btn {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-sans">
 
 <!-- Header -->
-<header class="bg-white shadow-sm border-b border-gray-200">
+<header id="main-header" class="bg-white shadow-sm border-b border-gray-200">
     <div class="px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <i class="fas fa-envelope text-blue-600 text-xl"></i>
                 <h1 class="text-xl font-semibold text-gray-900">{{ config('app.name') }} - Outgoing Mails</h1>
             </div>
-            <!-- Mobile back button -->
-            <button id="mobile-back-btn" class="md:hidden bg-gray-100 hover:bg-gray-200 p-2 rounded-lg transition-colors duration-200 hidden">
-                <i class="fas fa-arrow-left text-gray-600"></i>
-            </button>
+            <div class="flex items-center space-x-3">
+                <!-- Reset Button -->
+                <button id="reset-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <i class="fas fa-trash-alt text-sm"></i>
+                    <span class="hidden sm:inline">Clear All</span>
+                </button>
+                <!-- Mobile back button -->
+                <button id="mobile-back-btn" class="md:hidden bg-gray-100 hover:bg-gray-200 p-2 rounded-lg transition-colors duration-200 hidden">
+                    <i class="fas fa-arrow-left text-gray-600"></i>
+                </button>
+            </div>
         </div>
     </div>
 </header>
@@ -219,6 +234,30 @@
     </div>
 </div>
 
+<!-- Reset Confirmation Modal -->
+<div id="reset-modal" class="fixed inset-0 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen px-4">
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-50 transition-opacity"></div>
+        <div class="relative bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+            <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+                <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 text-center mb-2">Clear All Emails</h3>
+            <p class="text-sm text-gray-500 text-center mb-6">
+                Are you sure you want to delete all emails? This action cannot be undone.
+            </p>
+            <div class="flex space-x-3">
+                <button id="cancel-reset" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                    Cancel
+                </button>
+                <button id="confirm-reset" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                    Delete All
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     $(function () {
@@ -253,6 +292,64 @@
                 openMailInNewTab(currentMailId);
             }
         });
+
+        // Handle reset button click
+        $('#reset-btn').click(function() {
+            $('#reset-modal').removeClass('hidden');
+        });
+
+        // Handle reset modal buttons
+        $('#cancel-reset').click(function() {
+            $('#reset-modal').addClass('hidden');
+        });
+
+        $('#confirm-reset').click(function() {
+            resetAllMails();
+        });
+
+        // Close modal when clicking outside
+        $('#reset-modal').click(function(e) {
+            if (e.target === this) {
+                $(this).addClass('hidden');
+            }
+        });
+
+        // Function to reset all mails
+        function resetAllMails() {
+            // Show loading state on button
+            const originalText = $('#confirm-reset').html();
+            $('#confirm-reset').html('<i class="fas fa-spinner fa-spin mr-2"></i>Deleting...');
+            $('#confirm-reset').prop('disabled', true);
+
+            // Make AJAX request to clear all mails
+            $.ajax({
+                url: '/mailbase/clear',
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    // Hide modal
+                    $('#reset-modal').addClass('hidden');
+
+                    // Show success message (you could use a toast notification here)
+                    alert('All emails have been cleared successfully!');
+
+                    // Reload the page to refresh the mail list
+                    window.location.reload();
+                },
+                error: function(xhr, status, error) {
+                    // Handle error
+                    alert('Failed to clear emails. Please try again.');
+                    console.error('Reset error:', error);
+                },
+                complete: function() {
+                    // Reset button state
+                    $('#confirm-reset').html(originalText);
+                    $('#confirm-reset').prop('disabled', false);
+                }
+            });
+        }
 
         // Function to select and display mail
         function selectMail(mailId, mailElement) {
@@ -337,6 +434,7 @@
                 $('#mail-list-panel').hide();
                 $('#mail-viewer-panel').removeClass('hidden').addClass('flex');
                 $('#mobile-back-btn').removeClass('hidden');
+                $('body').addClass('mobile-mail-viewer');
             } else { // Desktop
                 $('#mail-viewer-panel').removeClass('hidden').addClass('flex');
             }
@@ -347,6 +445,10 @@
                 $('#mail-viewer-panel').removeClass('flex').addClass('hidden');
                 $('#mail-list-panel').show();
                 $('#mobile-back-btn').addClass('hidden');
+                // Show header when back to mail list
+                $('#main-header').removeClass('header-mobile-hidden');
+
+                $('body').removeClass('mobile-mail-viewer');
             }
         }
 
@@ -364,6 +466,8 @@
                 $('#mail-list-panel').show();
                 $('#mail-viewer-panel').removeClass('hidden').addClass('flex');
                 $('#mobile-back-btn').addClass('hidden');
+                // Show header on desktop
+                $('#main-header').removeClass('header-mobile-hidden');
             }
         });
 
