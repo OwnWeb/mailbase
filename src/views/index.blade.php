@@ -136,8 +136,12 @@
                             <i class="fas fa-clock"></i>
                             <span>{{ $mail->sent_at->diffForHumans() }}</span>
                         </div>
-                        @if($mail->has_attachments ?? false)
-                            <i class="fas fa-paperclip text-gray-400"></i>
+                        @php $attachmentList = json_decode($mail->attachments, true) ?? []; @endphp
+                        @if(count($attachmentList) > 0)
+                            <span class="flex items-center space-x-1 text-gray-400">
+                                <i class="fas fa-paperclip"></i>
+                                <span>{{ count($attachmentList) }}</span>
+                            </span>
                         @endif
                     </div>
                 </div>
@@ -223,6 +227,15 @@
                         <span class="font-medium text-gray-700">Sent:</span>
                         <span id="mail-date" class="text-gray-900"></span>
                     </div>
+                </div>
+
+                <div id="mail-attachments" class="hidden mt-4 pt-4 border-t border-gray-100">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <i class="fas fa-paperclip text-gray-400"></i>
+                        <span class="text-sm font-medium text-gray-700">Attachments</span>
+                        <span id="attachment-count" class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <div id="attachment-list" class="flex flex-wrap gap-2"></div>
                 </div>
             </div>
         </div>
@@ -382,15 +395,107 @@
             $("#mail-from").text(mailData.from);
             $("#mail-date").text(mailData.sent_at || 'Unknown');
 
+            // Render attachments
+            renderAttachments(mailData);
+
             // Show mail details, hide empty state
             $("#empty-state").hide();
             $("#mail-details").removeClass('hidden').addClass('fade-in');
+        }
+
+        function renderAttachments(mailData) {
+            let attachments = [];
+            try {
+                attachments = typeof mailData.attachments === 'string'
+                    ? JSON.parse(mailData.attachments)
+                    : (mailData.attachments || []);
+            } catch (e) {
+                attachments = [];
+            }
+
+            if (!Array.isArray(attachments) || attachments.length === 0) {
+                $('#mail-attachments').addClass('hidden');
+                return;
+            }
+
+            $('#attachment-count').text(attachments.length);
+            const $list = $('#attachment-list').empty();
+
+            attachments.forEach(function (att, index) {
+                const previewUrl = '/mailbase/' + mailData.id + '/attachments/' + index;
+                const downloadUrl = previewUrl + '/download';
+
+                const $chip = $('<div>')
+                    .addClass('flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm');
+
+                $chip.append($('<i>').addClass(getFileIcon(att.mime_type) + ' text-gray-500'));
+                $chip.append(
+                    $('<a>').attr('href', previewUrl).attr('target', '_blank')
+                        .addClass('text-blue-600 hover:text-blue-800 font-medium truncate max-w-[200px]')
+                        .text(att.filename)
+                );
+                $chip.append($('<span>').addClass('text-gray-400 text-xs').text(formatFileSize(att.size)));
+                $chip.append(
+                    $('<a>').attr('href', downloadUrl).attr('title', 'Download')
+                        .addClass('text-gray-400 hover:text-gray-600')
+                        .append($('<i>').addClass('fas fa-download text-xs'))
+                );
+
+                $list.append($chip);
+            });
+
+            $('#mail-attachments').removeClass('hidden');
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        function getFileIcon(mimeType) {
+            if (!mimeType) return 'fas fa-file';
+            if (mimeType.startsWith('image/')) return 'fas fa-file-image';
+            if (mimeType === 'application/pdf') return 'fas fa-file-pdf';
+            if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'fas fa-file-excel';
+            if (mimeType.includes('word') || mimeType.includes('document')) return 'fas fa-file-word';
+            if (mimeType.includes('zip') || mimeType.includes('archive')) return 'fas fa-file-archive';
+            if (mimeType.startsWith('text/')) return 'fas fa-file-alt';
+            return 'fas fa-file';
         }
 
         // Function to open mail in new tab
         function openMailInNewTab(mailId) {
             $.get('/mailbase/' + mailId)
                 .done(function (response) {
+                    let attachments = [];
+                    try {
+                        attachments = typeof response.attachments === 'string'
+                            ? JSON.parse(response.attachments)
+                            : (response.attachments || []);
+                    } catch (e) {
+                        attachments = [];
+                    }
+
+                    let attachmentHtml = '';
+                    if (Array.isArray(attachments) && attachments.length > 0) {
+                        const items = attachments.map(function (att, index) {
+                            const previewUrl = '/mailbase/' + response.id + '/attachments/' + index;
+                            const downloadUrl = previewUrl + '/download';
+                            return '<div style="display:inline-flex;align-items:center;gap:8px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 12px;font-size:13px;">'
+                                + '<a href="' + previewUrl + '" target="_blank" style="color:#3182ce;text-decoration:none;font-weight:500;">' + att.filename + '</a>'
+                                + '<span style="color:#a0aec0;font-size:11px;">' + formatFileSize(att.size) + '</span>'
+                                + '<a href="' + downloadUrl + '" style="color:#718096;text-decoration:none;" title="Download">&#x2B07;</a>'
+                                + '</div>';
+                        }).join(' ');
+
+                        attachmentHtml = '<div style="padding:12px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc;">'
+                            + '<div style="font-size:13px;font-weight:600;color:#4a5568;margin-bottom:8px;">Attachments (' + attachments.length + ')</div>'
+                            + '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + items + '</div>'
+                            + '</div>';
+                    }
+
                     const newWindow = window.open('', '_blank');
                     newWindow.document.write(`
                             <!DOCTYPE html>
@@ -415,6 +520,7 @@
                                         <div><strong>Date:</strong> ${response.sent_at || 'Unknown'}</div>
                                     </div>
                                 </div>
+                                ${attachmentHtml}
                                 <div class="mail-content">
                                     ${response.body}
                                 </div>
