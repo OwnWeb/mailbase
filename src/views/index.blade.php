@@ -242,7 +242,7 @@
 
         <!-- Mail Content -->
         <div class="flex-1 overflow-hidden">
-            <iframe id="mail-iframe" class="w-full h-full border-0 bg-white"></iframe>
+            <iframe id="mail-iframe" class="w-full h-full border-0 bg-white" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
         </div>
     </div>
 </div>

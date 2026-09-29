@@ -30,4 +30,17 @@ return [
 
     'storage_path' => storage_path('app/mailbase'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Route Middleware
+    |--------------------------------------------------------------------------
+    |
+    | Captured emails contain password reset and activation links, so the
+    | routes require an authenticated user by default. Use a specific guard
+    | when needed, e.g. ['web', 'auth:admins'].
+    |
+    */
+
+    'middleware' => ['web', 'auth'],
+
 ];
