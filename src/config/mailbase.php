@@ -35,9 +35,9 @@ return [
     | Route Middleware
     |--------------------------------------------------------------------------
     |
-    | Captured emails contain password reset and activation links, so the
-    | routes require an authenticated user by default. Use a specific guard
-    | when needed, e.g. ['web', 'auth:admins'].
+    | Captured emails must not be exposed to unauthenticated users, so the
+    | routes require an authenticated user by default. Override this list
+    | to use another guard.
     |
     */
 
