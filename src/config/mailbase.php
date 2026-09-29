@@ -30,4 +30,17 @@ return [
 
     'storage_path' => storage_path('app/mailbase'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Route Middleware
+    |--------------------------------------------------------------------------
+    |
+    | Captured emails must not be exposed to unauthenticated users, so the
+    | routes require an authenticated user by default. Override this list
+    | to use another guard.
+    |
+    */
+
+    'middleware' => ['web', 'auth'],
+
 ];
